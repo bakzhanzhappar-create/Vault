@@ -1,2 +1,10 @@
+venv/
+.venv/
+env/
+.env
+*.env
+*.log
+*.tmp
 .idea/
 __pycache__/
+*.py[cod]
