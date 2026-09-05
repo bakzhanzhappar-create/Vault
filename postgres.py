@@ -1,14 +1,21 @@
+import os
 import psycopg
-#продумать структуру адреса, продумать таблицы или условно хорошо все это затестить
+from dotenv import load_dotenv
+
+load_dotenv()
+
 conn = psycopg.connect(
-    host="localhost",
-    port="5432",
-    dbname="vault_db",
-    user="vault_app",
-    password="2006Bakzhan",
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    dbname=os.getenv("DB_NAME", "vault_db"),
+    user=os.getenv("DB_USER", "vault_app"),
+    password=os.getenv("DB_PASSWORD"),
 )
 
 cursor = conn.cursor()
+
+cursor.execute("SELECT current_user;")
+print("Connected as:", cursor.fetchone()[0])
 
 cursor.close()
 conn.close()
