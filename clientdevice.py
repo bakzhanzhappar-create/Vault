@@ -138,10 +138,11 @@ if __name__ == "__main__":
     print(f"Encryption Key (только в RAM):     {enc_key.hex()[:20]}...")
 
     print("\n=== 2. ШИФРОВАНИЕ ЗАПИСИ (CLIENT-SIDE) ===")
+    title_name=str(input("Title: "))
+    text = str(input("Text: "))
     secret_note = {
-        "title": "GitHub Token",
-        "username": "my_account",
-        "password": "ghp_super_secret_token_12345",
+        "title": f"{title_name}",
+        "text": f"{text}",
     }
 
     # Шифруем данные
