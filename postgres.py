@@ -16,19 +16,26 @@ with psycopg.connect(
         cursor.execute("SELECT current_user;")
         print("Connected as:", cursor.fetchone()[0])
 
-        cursor.execute("""
-        CREATE TEMP TABLE test(
-        id SERIAL PRIMARY KEY,
-        something TEXT,
-        number INTEGER)
-        """)
+        def create_test_table():
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS test(
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            title JSON NOT NULL,
+            secret JSON,
+            user_id JSON)
+            """)
+            return True
 
-        cursor.execute("INSERT INTO test(something, number) VALUES ('niggadeluxe', 255)")
+        def insert_table(title_name: str, secret_data: str, user_id: str):
+            cursor.execute("""
+            INSERT INTO test(title, secret, user_id) VALUES (%s, %s, %s)
+                           """)
+            return True
 
-        cursor.execute("SELECT * FROM test")
+        def show_table():
+            cursor.execute("SELECT * FROM test")
+            print(cursor.fetchone())
 
-        print(cursor.fetchone())
-
-
+        create_test_table()
 cursor.close()
 conn.close()

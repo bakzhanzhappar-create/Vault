@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from postgres import create_test_table, insert_table, show_table
 
 # =====================================================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ КРИПТОГРАФИИ
@@ -95,7 +96,6 @@ def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
     aad = item_id.encode("utf-8")  # ID записи привязывается к шифру
 
     ciphertext = aesgcm.encrypt(nonce, plaintext_bytes, aad)
-
     return {
         "item_id": item_id,
         "nonce": base64.b64encode(nonce).decode(),
@@ -143,6 +143,7 @@ if __name__ == "__main__":
     secret_note = {
         "title": f"{title_name}",
         "text": f"{text}",
+        "user_id": f"{user_salt}",
     }
 
     # Шифруем данные
