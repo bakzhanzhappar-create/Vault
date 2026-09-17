@@ -26,10 +26,13 @@ with psycopg.connect(
             """)
             return True
 
-        def insert_table(title_name: str, secret_data: str, user_id: str):
-            cursor.execute("""
-            INSERT INTO test(title, secret, user_id) VALUES (%s, %s, %s)
-                           """)
+        def insert_table(title_name: str, secret_data: str, id_user: str):
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO test(title, secret, user_id) VALUES (%s, %s, %s)",
+                    (title_name, secret_data, id_user),
+                )
+                conn.commit()
             return True
 
         def show_table():

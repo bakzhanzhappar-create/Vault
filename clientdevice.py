@@ -94,12 +94,13 @@ def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
     nonce = os.urandom(12)
     plaintext_bytes = json.dumps(data).encode("utf-8")
     aad = item_id.encode("utf-8")  # ID записи привязывается к шифру
-
     ciphertext = aesgcm.encrypt(nonce, plaintext_bytes, aad)
+    encypted_nonce=base64.b64encode(nonce).decode()
+    encrypted_ciphertext = base64.b64encode(ciphertext).decode()
     return {
         "item_id": item_id,
-        "nonce": base64.b64encode(nonce).decode(),
-        "ciphertext": base64.b64encode(ciphertext).decode(),
+        "nonce": encypted_nonce,
+        "ciphertext": encrypted_ciphertext,
     }
 
 
