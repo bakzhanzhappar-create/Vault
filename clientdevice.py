@@ -1,8 +1,8 @@
-#Это временный файл где будет имитироваться связь клиента и сервера
-#У юзера три ключа.
-#Симметричный ключ (AES-GCM 256) шифрует записи. Далее будет шифрован еще раз пинкодом
-#Auth Key доказательство знания мастер-пароля без его раскрытия.
-#Асимметричная пара ключей (Ed25519 или ECDSA P-256), уникальная для каждого девайса (ПК, телефон, планшет).
+# Это временный файл где будет имитироваться связь клиента и сервера
+# У юзера три ключа.
+# Симметричный ключ (AES-GCM 256) шифрует записи. Далее будет шифрован еще раз пинкодом
+# Auth Key доказательство знания мастер-пароля без его раскрытия.
+# Асимметричная пара ключей (Ed25519 или ECDSA P-256), уникальная для каждого девайса (ПК, телефон, планшет).
 import base64
 import json
 import os
@@ -95,7 +95,7 @@ def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
     plaintext_bytes = json.dumps(data).encode("utf-8")
     aad = item_id.encode("utf-8")  # ID записи привязывается к шифру
     ciphertext = aesgcm.encrypt(nonce, plaintext_bytes, aad)
-    encypted_nonce=base64.b64encode(nonce).decode()
+    encypted_nonce = base64.b64encode(nonce).decode()
     encrypted_ciphertext = base64.b64encode(ciphertext).decode()
     return {
         "item_id": item_id,
@@ -120,6 +120,9 @@ def decrypt_vault_item(enc_key: bytes, encrypted_item: dict) -> dict:
 # =====================================================================
 
 if __name__ == "__main__":
+    # Инициализируем таблицу в БД при запуске
+    create_test_table()
+
     print("=== 1. РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===")
     password = input("Придумайте Master Password: ")
     pin = input("Придумайте локальный PIN (например, 1234): ")
@@ -139,22 +142,25 @@ if __name__ == "__main__":
     print(f"Encryption Key (только в RAM):     {enc_key.hex()[:20]}...")
 
     print("\n=== 2. ШИФРОВАНИЕ ЗАПИСИ (CLIENT-SIDE) ===")
-    title_name=str(input("Title: "))
+    title_name = str(input("Title: "))
     text = str(input("Text: "))
     secret_note = {
         "title": f"{title_name}",
         "text": f"{text}",
-        "user_id": f"{user_salt}",
+        "user_id": f"{user_salt.hex()}",
     }
 
     # Шифруем данные
     item_payload = encrypt_vault_item(enc_key, "item-uuid-001", secret_note)
 
-    # Сериализуем в JSON-строку для отправки на сервер
-    json_payload_to_server = json.dumps(item_payload, indent=2)
+    # Запись зашифрованных данных в БД PostgreSQL
+    # В таблицу с JSON-полями передаем строковые представления JSON
+    db_title = json.dumps({"title": title_name})
+    db_secret = json.dumps(item_payload)
+    db_user_id = json.dumps({"user_id": user_salt.hex()})
 
-    print("Строка JSON, которая ПОЛЕТИТ НА СЕРВЕР (Сервер не видит паролей):")
-    print(json_payload_to_server)
+    insert_table(db_title, db_secret, db_user_id)
+    print("\n[БД] Запись успешно сохранена в PostgreSQL!")
 
     print("\n=== 3. ЭМУЛЯЦИЯ ПЕРЕЗАПУСКА ПРИЛОЖЕНИЯ ===")
     # Очищаем оперативку от ключей
@@ -170,12 +176,15 @@ if __name__ == "__main__":
 
         print("\n[Успех] PIN верный! Master Key восстановлен.")
 
-        # Расшифровываем полученную с сервера JSON-строку
-        server_data = json.loads(json_payload_to_server)
-        decrypted_secret = decrypt_vault_item(restored_enc_key, server_data)
+        # Чтение сохраненной записи из БД
+        print("\n[БД] Текущее содержимое таблицы:")
+        show_table()
+
+        # Расшифровываем payload
+        decrypted_secret = decrypt_vault_item(restored_enc_key, item_payload)
 
         print("\nРасшифрованные данные из хранилища:")
         print(json.dumps(decrypted_secret, indent=2, ensure_ascii=False))
 
-    except Exception:
-        print("\n[Ошибка] Неверный PIN-код! Операция расшифровки отклонена.")
+    except Exception as e:
+        print(f"\n[Ошибка] Неверный PIN-код или ошибка расшифровки! ({e})")
