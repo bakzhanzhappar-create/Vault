@@ -1,4 +1,7 @@
-# Это временный файл где будет имитироваться связь клиента и сервера
+# Это временный файл где будет реализовано шифрование.
+#Необходимо доказать что мы можем Надежно, Доступно и Безопасно хранить данные в бд
+
+
 # У юзера три ключа.
 # Симметричный ключ (AES-GCM 256) шифрует записи. Далее будет шифрован еще раз пинкодом
 # Auth Key доказательство знания мастер-пароля без его раскрытия.
@@ -10,8 +13,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
-from postgres import create_test_table, insert_table, show_table
 
 # =====================================================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ КРИПТОГРАФИИ
@@ -113,79 +114,3 @@ def decrypt_vault_item(enc_key: bytes, encrypted_item: dict) -> dict:
 
     plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, aad)
     return json.loads(plaintext_bytes.decode("utf-8"))
-
-
-# =====================================================================
-# КОНСОЛЬНЫЙ СЦЕНАРИЙ ИСПОЛЬЗОВАНИЯ
-# =====================================================================
-
-if __name__ == "__main__":
-    # Инициализируем таблицу в БД при запуске
-    create_test_table()
-
-    print("=== 1. РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===")
-    password = input("Придумайте Master Password: ")
-    pin = input("Придумайте локальный PIN (например, 1234): ")
-
-    # 1. Генерация уникальной соли пользователя (хранится открыто)
-    user_salt = os.urandom(16)
-
-    # 2. Получение Master Key и его расщепление
-    master_key = derive_master_key(password, user_salt)
-    enc_key, auth_key = split_keys(master_key)
-
-    # 3. Шифруем Master Key ПИН-кодом (это уходит в IndexedDB)
-    local_pin_vault = encrypt_master_key_with_pin(master_key, pin)
-
-    print("\n[Успешно] Аккаунт создан!")
-    print(f"Auth Key (отправляется на сервер): {auth_key.hex()[:20]}...")
-    print(f"Encryption Key (только в RAM):     {enc_key.hex()[:20]}...")
-
-    print("\n=== 2. ШИФРОВАНИЕ ЗАПИСИ (CLIENT-SIDE) ===")
-    title_name = str(input("Title: "))
-    text = str(input("Text: "))
-    secret_note = {
-        "title": f"{title_name}",
-        "text": f"{text}",
-        "user_id": f"{user_salt.hex()}",
-    }
-
-    # Шифруем данные
-    item_payload = encrypt_vault_item(enc_key, "item-uuid-001", secret_note)
-
-    # Запись зашифрованных данных в БД PostgreSQL
-    # В таблицу с JSON-полями передаем строковые представления JSON
-    db_title = json.dumps({"title": title_name})
-    db_secret = json.dumps(item_payload)
-    db_user_id = json.dumps({"user_id": user_salt.hex()})
-
-    insert_table(db_title, db_secret, db_user_id)
-    print("\n[БД] Запись успешно сохранена в PostgreSQL!")
-
-    print("\n=== 3. ЭМУЛЯЦИЯ ПЕРЕЗАПУСКА ПРИЛОЖЕНИЯ ===")
-    # Очищаем оперативку от ключей
-    del master_key, enc_key, auth_key
-
-    print("Приложение закрыто. Ключи из RAM удалены.")
-    entered_pin = input("\nВведите PIN для быстрого входа: ")
-
-    try:
-        # Восстанавливаем Master Key по ПИН-коду из IndexedDB
-        restored_mk = decrypt_master_key_with_pin(local_pin_vault, entered_pin)
-        restored_enc_key, _ = split_keys(restored_mk)
-
-        print("\n[Успех] PIN верный! Master Key восстановлен.")
-
-        # Чтение сохраненной записи из БД
-        print("\n[БД] Текущее содержимое таблицы:")
-        show_table()
-
-        # Расшифровываем payload
-        decrypted_secret = decrypt_vault_item(restored_enc_key, item_payload)
-
-        print("\nРасшифрованные данные из хранилища:")
-        print(json.dumps(decrypted_secret, indent=2, ensure_ascii=False))
-
-    except Exception as e:
-        print(f"\n[Ошибка] Неверный PIN-код или ошибка расшифровки! ({e})")
-#организовать код
