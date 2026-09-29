@@ -1,4 +1,6 @@
 #консольный интерфейс
+from calendar import error
+
 from enigma import derive_master_key, split_keys, encrypt_master_key_with_pin, decrypt_master_key_with_pin, encrypt_vault_item, decrypt_vault_item
 from postgres import insert_table, show_table
 import os
@@ -6,7 +8,9 @@ import json
 
 if __name__ == "__main__":
 
-    print("=== 1. РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===")
+while True:
+    ask=input("Create secret not? (y/n)? ")
+    print("=== START ===")
     password = input("Придумайте Master Password: ")
     pin = input("Придумайте локальный PIN (например, 1234): ")
 
@@ -24,26 +28,31 @@ if __name__ == "__main__":
     print(f"Auth Key (отправляется на сервер): {auth_key.hex()[:20]}...")
     print(f"Encryption Key (только в RAM):     {enc_key.hex()[:20]}...")
 
-    print("\n=== 2. ШИФРОВАНИЕ ЗАПИСИ (CLIENT-SIDE) ===")
-    title_name = str(input("Title: "))
-    text = str(input("Text: "))
-    secret_note = {
-        "title": f"{title_name}",
-        "text": f"{text}",
-        "user_id": f"{user_salt.hex()}",
-    }
+    if "y" in ask.lower():
+        print("\n=== ШИФРОВАНИЕ ЗАПИСИ ===")
+        title_name = str(input("Title: "))
+        text = str(input("Text: "))
+        secret_note = {
+            "title": f"{title_name}",
+            "text": f"{text}",
+            "user_id": f"{user_salt.hex()}",
+        }
 
-    # Шифруем данные
-    item_payload = encrypt_vault_item(enc_key, "item-uuid-001", secret_note)
+        # Шифруем данные
+        item_payload = encrypt_vault_item(enc_key, "item-uuid-001", secret_note)
 
-    # Запись зашифрованных данных в БД PostgreSQL
-    # В таблицу с JSON-полями передаем строковые представления JSON
-    db_title = json.dumps({"title": title_name})
-    db_secret = json.dumps(item_payload)
-    db_user_id = json.dumps({"user_id": user_salt.hex()})
+        # Запись зашифрованных данных в БД PostgreSQL
+        # В таблицу с JSON-полями передаем строковые представления JSON
+        db_title = json.dumps({"title": title_name})
+        db_secret = json.dumps(item_payload)
+        db_user_id = json.dumps({"user_id": user_salt.hex()})
 
-    insert_table(db_title, db_secret, db_user_id)
-    print("\n[БД] Запись успешно сохранена в PostgreSQL!")
+        insert_table(db_title, db_secret, db_user_id)
+        print("\n[БД] Запись успешно сохранена в PostgreSQL!")
+
+    else:
+        raise Exception as error:
+        print(f"Something went wrong: {error}")
 
     print("\n=== 3. ЭМУЛЯЦИЯ ПЕРЕЗАПУСКА ПРИЛОЖЕНИЯ ===")
     # Очищаем оперативку от ключей
@@ -69,6 +78,6 @@ if __name__ == "__main__":
         print("\nРасшифрованные данные из хранилища:")
         print(json.dumps(decrypted_secret, indent=2, ensure_ascii=False))
 
-    except Exception as e:
-        print(f"\n[Ошибка] Неверный PIN-код или ошибка расшифровки! ({e})")
+    except Exception as error:
+        print(f"\n[Ошибка] Неверный PIN-код или ошибка расшифровки! ({error})")
 #организовать код
