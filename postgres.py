@@ -20,10 +20,9 @@ def create_test_table():
         with conn.cursor() as cursor:
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS test_table(
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 title JSON NOT NULL,
-                secret JSON,
-                user_id JSON NOT NULL
+                secret JSON
             );
             """)
             conn.commit()
