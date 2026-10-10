@@ -38,8 +38,16 @@ def insert_table(title_name:str, secret_text: str):
             conn.commit()
     return True
 
+
 def show_table():
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""SELECT * FROM test_table;""")
-            print(cursor.fetchall())
+            cursor.execute("""SELECT session_id, title, secret FROM test_table;""")
+            return cursor.fetchall()
+
+
+def get_secret_by_id(uuid_code:str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""SELECT title, secret FROM test_table WHERE session_id = %s;""", (uuid_code,))
+            return cursor.fetchone()
