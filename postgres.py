@@ -21,20 +21,20 @@ def create_test_table():
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS test_table(
                 session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                title JSON NOT NULL,
-                secret JSON
+                title VARCHAR(100) NOT NULL,
+                secret TEXT
             );
             """)
             conn.commit()
     return True
 
 
-def insert_table(title_name:str, secret_text: str, id_user:str):
+def insert_table(title_name:str, secret_text: str):
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
-            INSERT INTO test_table(title, secret, user_id) VALUES (%s, %s, %s)""",
-            (title_name, secret_text, id_user),)
+            INSERT INTO test_table(title, secret) VALUES (%s, %s)""",
+            (title_name, secret_text),)
             conn.commit()
     return True
 
