@@ -1,7 +1,7 @@
 import os
 import psycopg
 from dotenv import load_dotenv
-
+from uuid import UUID
 load_dotenv()
 
 
@@ -46,8 +46,24 @@ def show_table():
             return cursor.fetchall()
 
 
-def get_secret_by_id(uuid_code:str):
+def get_secret_by_id(uuid_code:UUID):
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""SELECT title, secret FROM test_table WHERE session_id = %s;""", (uuid_code,))
             return cursor.fetchone()
+
+# Update
+def update_by_id(uuid_code: UUID, title: str, secret: str) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""UPDATE test_table SET title = %s, secret = %s WHERE session_id = %s;""", (title, secret, uuid_code),)
+            conn.commit()
+            return cursor.rowcount == 1
+
+# Delete
+def delete_by_id(uuid_code:UUID) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""DELETE FROM test_table WHERE session_id = %s;""", (uuid_code,),)
+            conn.commit()
+            return cursor.rowcount == 1
