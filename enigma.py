@@ -6,10 +6,6 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# =====================================================================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ КРИПТОГРАФИИ
-# =====================================================================
-
 
 def derive_master_key(master_password: str, salt: bytes) -> bytes:
     """Генерация тяжелого Master Key из Master Password через PBKDF2."""
@@ -41,28 +37,6 @@ def split_keys(master_key: bytes) -> tuple[bytes, bytes]:
     return enc_key, auth_key
 
 
-def encrypt_master_key_with_pin(master_key: bytes, pin: str) -> dict:
-    """Шифрование Master Key коротким ПИН-кодом для локального хранения."""
-    pin_salt = os.urandom(16)
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=pin_salt,
-        iterations=100_000,  # Для ПИН-кода меньше итераций для быстрого входа
-    )
-    pin_derived_key = kdf.derive(pin.encode())
-
-    aesgcm = AESGCM(pin_derived_key)
-    nonce = os.urandom(12)
-    encrypted_mk = aesgcm.encrypt(nonce, master_key, None)
-
-    return {
-        "pin_salt": base64.b64encode(pin_salt).decode(),
-        "nonce": base64.b64encode(nonce).decode(),
-        "encrypted_master_key": base64.b64encode(encrypted_mk).decode(),
-    }
-
-
 def decrypt_master_key_with_pin(pin_vault: dict, pin: str) -> bytes:
     """Расшифровка Master Key с помощью ПИН-кода."""
     pin_salt = base64.b64decode(pin_vault["pin_salt"])
@@ -82,7 +56,7 @@ def decrypt_master_key_with_pin(pin_vault: dict, pin: str) -> bytes:
 
 
 def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
-    """Шифрование одной записи (логин/пароль/заметка) ключом Encryption Key."""
+    """Шифрование одной записи Encryption Key."""
     aesgcm = AESGCM(enc_key)
     nonce = os.urandom(12)
     plaintext_bytes = json.dumps(data).encode("utf-8")
