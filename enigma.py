@@ -54,7 +54,7 @@ def decrypt_master_key_with_pin(pin_vault: dict, pin: str) -> bytes:
     aesgcm = AESGCM(pin_derived_key)
     return aesgcm.decrypt(nonce, encrypted_mk, None)
 
-
+# useable
 def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
     """Шифрование одной записи Encryption Key."""
     aesgcm = AESGCM(enc_key)
@@ -70,7 +70,7 @@ def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
         "ciphertext": encrypted_ciphertext,
     }
 
-
+# useable
 def decrypt_vault_item(enc_key: bytes, encrypted_item: dict) -> dict:
     """Расшифровка записи."""
     aesgcm = AESGCM(enc_key)
