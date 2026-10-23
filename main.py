@@ -6,10 +6,6 @@ def write_table():
     """Тестовая запись в таблицу"""
     title_name = str(input("title name: "))
     secret_text = str(input("secret text: "))
-    dicted={
-        title_name: title_name,
-        secret_text: secret_text
-    }
     insert_table(title_name, secret_text)#dicted
     return True
 
