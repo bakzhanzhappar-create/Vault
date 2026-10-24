@@ -1,12 +1,15 @@
-from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id
-from uuid import UUID
+from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid
 
 
 def write_table():
     """Тестовая запись в таблицу"""
     title_name = str(input("title name: "))
     secret_text = str(input("secret text: "))
-    insert_table(title_name, secret_text)#dicted
+    dicted_secret={
+        "title":title_name,
+        "secret":secret_text
+    }
+    insert_table(dicted_secret)
     return True
 
 
@@ -26,13 +29,6 @@ def show_secret():
     print(f"{title}: {secret}")
     return True
 
-def check_uuid(uuid_code:str) -> UUID | None:
-    try:
-        checked_uuid=UUID(uuid_code)
-    except ValueError:
-        print("Ошибка, гдето заляпали")
-        return None
-    return checked_uuid
 
 def list_entries():
     for id, title, secret in show_table():
@@ -47,7 +43,10 @@ def secret_update():
 
     new_title= str(input("new title: "))
     new_secret = str(input("new secret: "))
-    changed = update_by_id(checked_uuid, new_title, new_secret)
+    dicted_secret={
+        new_title: new_secret,
+    }
+    changed = update_by_id(checked_uuid, dicted_secret)
     print("changed" if changed else "Запись не найдена")
     return changed
 

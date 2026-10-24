@@ -15,6 +15,15 @@ def get_connection():
     )
 
 
+def check_uuid(uuid_code:str) -> UUID | None:
+    try:
+        checked_uuid=UUID(uuid_code)
+    except ValueError:
+        print("Ошибка, гдето заляпали")
+        return None
+    return checked_uuid
+
+
 def create_test_table():
     with get_connection() as conn:
         with conn.cursor() as cursor:
@@ -29,12 +38,14 @@ def create_test_table():
     return True
 
 
-def insert_table(title_name:str, secret_text: str):
+def insert_table(dict_secret:dict):
+    title = dict_secret.get("title")
+    secret = dict_secret.get("secret")
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
             INSERT INTO test_table(title, secret) VALUES (%s, %s)""",
-            (title_name, secret_text),)
+            (title, secret),)
             conn.commit()
     return True
 
@@ -46,24 +57,35 @@ def show_table():
             return cursor.fetchall()
 
 
-def get_secret_by_id(uuid_code:UUID):
+def get_secret_by_id(uuid_code:str):
+    checked_uuid=check_uuid(uuid_code)
+    if checked_uuid is None:
+        return False
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""SELECT title, secret FROM test_table WHERE session_id = %s;""", (uuid_code,))
+            cursor.execute("""SELECT title, secret FROM test_table WHERE session_id = %s;""", (checked_uuid,))
             return cursor.fetchone()
 
-# Update
-def update_by_id(uuid_code: UUID, title: str, secret: str) -> bool:
+
+def update_by_id(uuid_code: str, dict_secret:dict) -> bool:
+    title = dict_secret.get("title")
+    secret = dict_secret.get("secret")
+    checked_uuid = check_uuid(uuid_code)
+    if checked_uuid is None:
+        return False
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""UPDATE test_table SET title = %s, secret = %s WHERE session_id = %s;""", (title, secret, uuid_code),)
+            cursor.execute("""UPDATE test_table SET title = %s, secret = %s WHERE session_id = %s;""", (title, secret, checked_uuid),)
             conn.commit()
             return cursor.rowcount == 1
 
-# Delete
-def delete_by_id(uuid_code:UUID) -> bool:
+
+def delete_by_id(uuid_code:str) -> bool:
+    checked_uuid = check_uuid(uuid_code)
+    if checked_uuid is None:
+        return False
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""DELETE FROM test_table WHERE session_id = %s;""", (uuid_code,),)
+            cursor.execute("""DELETE FROM test_table WHERE session_id = %s;""", (checked_uuid,),)
             conn.commit()
             return cursor.rowcount == 1
