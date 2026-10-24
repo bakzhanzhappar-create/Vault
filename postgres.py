@@ -15,11 +15,13 @@ def get_connection():
     )
 
 
-def check_uuid(uuid_code:str) -> UUID | None:
+def check_uuid(uuid_code) -> UUID | None:
+    if isinstance(uuid_code, UUID):
+        return uuid_code
     try:
-        checked_uuid=UUID(uuid_code)
-    except ValueError:
-        print("Ошибка, гдето заляпали")
+        checked_uuid = UUID(uuid_code)
+    except (ValueError, TypeError):
+        print("Ошибка, где-то заляпали")
         return None
     return checked_uuid
 
@@ -57,7 +59,7 @@ def show_table():
             return cursor.fetchall()
 
 
-def get_secret_by_id(uuid_code:str):
+def get_secret_by_id(uuid_code):
     checked_uuid=check_uuid(uuid_code)
     if checked_uuid is None:
         return False
@@ -67,7 +69,7 @@ def get_secret_by_id(uuid_code:str):
             return cursor.fetchone()
 
 
-def update_by_id(uuid_code: str, dict_secret:dict) -> bool:
+def update_by_id(uuid_code, dict_secret:dict) -> bool:
     title = dict_secret.get("title")
     secret = dict_secret.get("secret")
     checked_uuid = check_uuid(uuid_code)
@@ -80,7 +82,7 @@ def update_by_id(uuid_code: str, dict_secret:dict) -> bool:
             return cursor.rowcount == 1
 
 
-def delete_by_id(uuid_code:str) -> bool:
+def delete_by_id(uuid_code) -> bool:
     checked_uuid = check_uuid(uuid_code)
     if checked_uuid is None:
         return False

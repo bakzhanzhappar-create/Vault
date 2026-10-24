@@ -37,14 +37,11 @@ def list_entries():
 
 def secret_update():
     checked_uuid = check_uuid(input("uuid code: ").strip())
-
-    if checked_uuid is None:
-        return False
-
     new_title= str(input("new title: "))
     new_secret = str(input("new secret: "))
     dicted_secret={
-        new_title: new_secret,
+        "title":new_title,
+        "secret":new_secret
     }
     changed = update_by_id(checked_uuid, dicted_secret)
     print("changed" if changed else "Запись не найдена")
@@ -52,7 +49,7 @@ def secret_update():
 
 
 def delete_secret():
-    checked_uuid = check_uuid(input("uuid code: ").strip())
+    checked_uuid = check_uuid(input("uuid code: ").strip())  # Тоже добавляем check_uuid
 
     if checked_uuid is None:
         return False

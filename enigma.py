@@ -3,12 +3,11 @@ import json
 import os
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
-def derive_master_key(master_password: str, salt: bytes) -> bytes:
-    """Генерация тяжелого Master Key из Master Password через PBKDF2."""
+def derive_kek(master_password: str, salt: bytes) -> bytes:
+    """Генерация ключа шифрования ключа (KEK) из Мастер-пароля через PBKDF2."""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -18,62 +17,43 @@ def derive_master_key(master_password: str, salt: bytes) -> bytes:
     return kdf.derive(master_password.encode())
 
 
-def split_keys(master_key: bytes) -> tuple[bytes, bytes]:
-    """Расщепление Master Key на Encryption Key и Auth Key с помощью HKDF."""
-    enc_key = HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=None,
-        info=b"vault-data-encryption",
-    ).derive(master_key)
-
-    auth_key = HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=None,
-        info=b"server-authentication",
-    ).derive(master_key)
-
-    return enc_key, auth_key
+def generate_dek() -> bytes:
+    """Генерация случайного ключа данных (DEK) для шифрования записей."""
+    return os.urandom(32)
 
 
-def decrypt_master_key_with_pin(pin_vault: dict, pin: str) -> bytes:
-    """Расшифровка Master Key с помощью ПИН-кода."""
-    pin_salt = base64.b64decode(pin_vault["pin_salt"])
-    nonce = base64.b64decode(pin_vault["nonce"])
-    encrypted_mk = base64.b64decode(pin_vault["encrypted_master_key"])
+def encrypt_dek(kek: bytes, dek: bytes) -> tuple[bytes, bytes]:
+    """Шифрование DEK с помощью KEK (тот самый 'маленький сейф')."""
+    aesgcm = AESGCM(kek)
+    nonce = os.urandom(12)
+    encrypted_dek = aesgcm.encrypt(nonce, dek, None)
+    return nonce, encrypted_dek
 
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=pin_salt,
-        iterations=100_000,
-    )
-    pin_derived_key = kdf.derive(pin.encode())
 
-    aesgcm = AESGCM(pin_derived_key)
-    return aesgcm.decrypt(nonce, encrypted_mk, None)
+def decrypt_dek(kek: bytes, nonce: bytes, encrypted_dek: bytes) -> bytes:
+    """Расшифровка DEK с помощью KEK (открытие 'маленького сейфа')."""
+    aesgcm = AESGCM(kek)
+    return aesgcm.decrypt(nonce, encrypted_dek, None)
 
-# useable
-def encrypt_vault_item(enc_key: bytes, item_id: str, data: dict) -> dict:
-    """Шифрование одной записи Encryption Key."""
-    aesgcm = AESGCM(enc_key)
+
+def encrypt_vault_item(dek: bytes, item_id: str, data: dict) -> dict:
+    """Шифрование одной записи с помощью DEK."""
+    aesgcm = AESGCM(dek)
     nonce = os.urandom(12)
     plaintext_bytes = json.dumps(data).encode("utf-8")
-    aad = item_id.encode("utf-8")  # ID записи привязывается к шифру
+    aad = item_id.encode("utf-8")  # ID записи привязывается к шифру (защита от подмены)
     ciphertext = aesgcm.encrypt(nonce, plaintext_bytes, aad)
-    encypted_nonce = base64.b64encode(nonce).decode()
-    encrypted_ciphertext = base64.b64encode(ciphertext).decode()
+
     return {
         "item_id": item_id,
-        "nonce": encypted_nonce,
-        "ciphertext": encrypted_ciphertext,
+        "nonce": base64.b64encode(nonce).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode(),
     }
 
-# useable
-def decrypt_vault_item(enc_key: bytes, encrypted_item: dict) -> dict:
-    """Расшифровка записи."""
-    aesgcm = AESGCM(enc_key)
+
+def decrypt_vault_item(dek: bytes, encrypted_item: dict) -> dict:
+    """Расшифровка одной записи с помощью DEK."""
+    aesgcm = AESGCM(dek)
     nonce = base64.b64decode(encrypted_item["nonce"])
     ciphertext = base64.b64decode(encrypted_item["ciphertext"])
     aad = encrypted_item["item_id"].encode("utf-8")
