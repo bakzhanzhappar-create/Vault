@@ -1,5 +1,5 @@
 from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid
-
+import enigma
 
 def write_table():
     """Тестовая запись в таблицу"""
