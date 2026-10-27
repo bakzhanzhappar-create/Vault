@@ -6,6 +6,11 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
+def generate_salt() ->bytes:
+    salt=os.urandom(16)
+    return salt
+
+
 def derive_kek(master_password: str, salt: bytes) -> bytes:
     """Генерация ключа шифрования ключа (KEK) из Мастер-пароля через PBKDF2."""
     kdf = PBKDF2HMAC(

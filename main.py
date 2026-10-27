@@ -1,9 +1,10 @@
 from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid
-import enigma
+from enigma import generate_salt, derive_kek,encrypt_vault_item
 
 def create_password():
     password=str(input("Enter master-password: "))
-    derive_kek(master_password=password)
+    salt=generate_salt()
+    derive_kek(master_password=password, salt=salt)
 
 
 def write_table():
@@ -14,6 +15,7 @@ def write_table():
         "title":title_name,
         "secret":secret_text
     }
+    encrypted_secret = encrypt_vault_item(dicted_secret)
     insert_table(dicted_secret)
     return True
 

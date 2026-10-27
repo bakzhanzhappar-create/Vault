@@ -32,8 +32,8 @@ def create_test_table():
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS test_table(
                 session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                title VARCHAR(100) NOT NULL,
-                secret TEXT
+                title JSONB NOT NULL,
+                secret JSONB
             );
             """)
             conn.commit()
