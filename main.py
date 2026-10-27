@@ -1,6 +1,11 @@
 from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid
 import enigma
 
+def create_password():
+    password=str(input("Enter master-password: "))
+    derive_kek(master_password=password)
+
+
 def write_table():
     """Тестовая запись в таблицу"""
     title_name = str(input("title name: "))
