@@ -9,6 +9,18 @@ from enigma import initialize_vault, load_dek, encrypt_vault_item, decrypt_vault
 CURRENT_DEK = None
 
 create_test_table()
+
+
+def export_vault():
+    if not CURRENT_DEK:
+        print("Сессия не активна!")
+        return False
+
+    if not os.path.exists(CONFIG_FILE):
+        print("Ошибка конфигурации файл не найдено")
+
+
+
 def authenticate_session():
     global CURRENT_DEK
     print("===== АВТОРИЗАЦИЯ / ИНИЦИАЛИЗАЦИЯ ХРАНИЛИЩА =====")

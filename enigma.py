@@ -80,7 +80,7 @@ def initialize_vault(master_password: str):
 
 def load_dek(master_password: str) -> bytes:
     if not os.path.exists(CONFIG_FILE):
-        raise FileNotFoundError("Хранилище не инициализировано.")
+        raise FileNotFoundError("config wasnt initialized.")
 
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
