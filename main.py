@@ -10,7 +10,7 @@ CURRENT_DEK = None
 
 create_test_table()
 
-
+#черновик в auth.
 def export_vault():
     if not CURRENT_DEK:
         print("Сессия не активна!")
