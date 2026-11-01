@@ -96,3 +96,23 @@ def delete_by_id(uuid_code) -> bool:
             cursor.execute("""DELETE FROM test_table WHERE session_id = %s;""", (checked_uuid,),)
             conn.commit()
             return cursor.rowcount == 1
+
+
+def import_db(vault_db: dict):
+    create_test_table()
+    vault_backup=vault_db
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""DELETE FROM test_table;""")
+
+                for entry in vault_backup["entries"]:
+                    cursor.execute(
+                        """INSERT INTO test_table(session_id, title, secret) VALUES (%s, %s, %s);""",(entry["session_id"], Jsonb(entry["title"]), Jsonb(entry["secret"])),
+                    )
+                conn.commit()
+        print("SUCCESSFULLY IMPORTED!")
+        return True
+    except Exception as error:
+        print(f"Ошибка при записи в базу данных во время восстановления: {error}")
+        return False

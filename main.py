@@ -1,16 +1,13 @@
 import os
 import uuid
-from postgres import (
-    create_test_table, insert_table, show_table,
-    get_secret_by_id, update_by_id, delete_by_id, check_uuid
-)
-from enigma import initialize_vault, load_dek, encrypt_vault_item, decrypt_vault_item, CONFIG_FILE
-
+import json
+from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid, import_db
+from enigma import initialize_vault, load_dek, encrypt_vault_item, decrypt_vault_item, CONFIG_FILE, import_password
 CURRENT_DEK = None
 
 create_test_table()
 
-#черновик в auth.
+
 def export_vault():
     if not CURRENT_DEK:
         print("Сессия не активна!")
@@ -19,6 +16,71 @@ def export_vault():
     if not os.path.exists(CONFIG_FILE):
         print("Ошибка конфигурации файл не найдено")
 
+    with open(CONFIG_FILE, "r", encoding="utf-8") as file:
+        config_data=json.load(file)
+
+    rows = show_table()
+    entries_list=list()
+    for session_id, title_json, secret_json in rows:
+        entries_list.append({
+            "session_id": str(session_id),
+            "title": title_json,
+            "secret": secret_json
+        })
+
+    vault_backup = {
+        "version": 1,
+        "config": config_data,
+        "entries": entries_list
+    }
+
+    file_name = input("Введите имя файла бэкапа (например, mysecretvault.vault)").strip()
+    if not file_name.endswith(".vault"):
+        file_name = file_name + ".vault"
+
+    try:
+        with open(file_name, "w", encoding="utf-8") as file:
+            json.dump(vault_backup, file, indent=4, ensure_ascii=False)
+            print(f"Backup file {file_name} created successfully!")
+            return True
+    except Exception as error:
+        print(f"ERROR {error}")
+        return False
+
+
+def import_vault():
+    file_name = input("Введите путь файла к резервной копии (.vault): ").strip()
+
+    if not os.path.exists(file_name):
+        print("Ошибка: Файл не найден!")
+        return False
+
+    try:
+        with open(file_name, "r", encoding="utf-8") as file:
+            vault_backup = json.load(file)
+    except Exception as error:
+        print(f"ERROR: Файл поврежден или имеет неверный формат JSON: {error}")
+        return False
+
+    password = input("Введите мастер-пароль от этой резервной копии для проверки: ")
+    temp_dek = import_password(password=password, vault_backup=vault_backup)
+
+    if temp_dek is None:
+        return False
+
+    confirm = input("Внимание! Это перезапишет текущее локальное хранилище. Продолжить? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print("Импорт отменен.")
+        return False
+
+    with open(CONFIG_FILE, "w", encoding="utf-8") as file:
+        json.dump(vault_backup["config"], file)
+
+    global CURRENT_DEK
+    CURRENT_DEK = temp_dek
+
+    import_db(vault_db=vault_backup)
+    return True
 
 
 def authenticate_session():
@@ -36,12 +98,13 @@ def authenticate_session():
 
     while True:
         pwd = input("Введите мастер-пароль для разблокировки сессии: ")
-        try:
-            CURRENT_DEK = load_dek(pwd)
+        dek = load_dek(pwd)
+        if dek is not None:
+            CURRENT_DEK = dek
             print("Сессия успешно разблокирована!\n")
             break
-        except Exception:
-            print("Неверный пароль! Попробуйте снова.")
+        else:
+            print("Неверный пароль или ошибка конфигурации! Попробуйте снова.")
 
 
 def write_table():
@@ -166,19 +229,21 @@ if __name__ == "__main__":
     while True:
         print("\n===== TESTING MENU =====")
         ask = str(input(
-            "w to write, e to exit, s to show all, c to create table, id to show by id, u to update, d to delete: ")).strip()
+            "w to write, e to exit, s to show all, id to show by id, u to update, d to delete, ex to export, im to import: ")).strip()
         if ask == "w":
             write_table()
         elif ask == "s":
             list_entries()
-        elif ask == "c":
-            create_test_table()
         elif ask == "id":
             show_secret()
         elif ask == "u":
             secret_update()
         elif ask == "d":
             delete_secret()
+        elif ask == "ex":
+            export_vault()
+        elif ask == "im":
+            import_vault()
         elif ask == "e":
             print("Выход из программы.")
             break
