@@ -1,32 +1,36 @@
 import os
 import uuid
 import json
-from postgres import create_test_table, insert_table, show_table, get_secret_by_id, update_by_id, delete_by_id, check_uuid, import_db
-from enigma import initialize_vault, load_dek, encrypt_vault_item, decrypt_vault_item, CONFIG_FILE, import_password
-CURRENT_DEK = None
+from postgres import VaultRepository
+from enigma import encrypt_vault_item, decrypt_vault_item, CONFIG_FILE, import_password
+from auth import VaultSession
 
-create_test_table()
+# Инициализируем объекты сессии и репозитория базы данных
+session = VaultSession()
+db = VaultRepository()
+
+# Создаем/проверяем таблицу через экземпляр репозитория
+db.create_test_table()
 
 
 def export_vault():
-    if not CURRENT_DEK:
+    if not session.is_active:
         print("Сессия не активна!")
         return False
 
     if not os.path.exists(CONFIG_FILE):
-        print("Ошибка конфигурации файл не найдено")
+        print("Ошибка конфигурации: файл не найден")
+        return False
 
     with open(CONFIG_FILE, "r", encoding="utf-8") as file:
-        config_data=json.load(file)
+        config_data = json.load(file)
 
-    rows = show_table()
-    entries_list=list()
-    for session_id, title_json, secret_json in rows:
-        entries_list.append({
-            "session_id": str(session_id),
-            "title": title_json,
-            "secret": secret_json
-        })
+    # Вызываем метод через объект db
+    rows = db.show_table()
+    entries_list = [
+        {"session_id": str(s_id), "title": t_json, "secret": s_json}
+        for s_id, t_json, s_json in rows
+    ]
 
     vault_backup = {
         "version": 1,
@@ -34,9 +38,9 @@ def export_vault():
         "entries": entries_list
     }
 
-    file_name = input("Введите имя файла бэкапа (например, mysecretvault.vault)").strip()
+    file_name = input("Введите имя файла бэкапа (например, mysecretvault.vault): ").strip()
     if not file_name.endswith(".vault"):
-        file_name = file_name + ".vault"
+        file_name += ".vault"
 
     try:
         with open(file_name, "w", encoding="utf-8") as file:
@@ -76,103 +80,70 @@ def import_vault():
     with open(CONFIG_FILE, "w", encoding="utf-8") as file:
         json.dump(vault_backup["config"], file)
 
-    global CURRENT_DEK
-    CURRENT_DEK = temp_dek
+    session.set_dek(temp_dek)
 
-    import_db(vault_db=vault_backup)
+    # Вызываем метод импорта базы через db
+    db.import_db(vault_db=vault_backup)
     return True
 
 
-def authenticate_session():
-    global CURRENT_DEK
-    print("===== АВТОРИЗАЦИЯ / ИНИЦИАЛИЗАЦИЯ ХРАНИЛИЩА =====")
-    if not os.path.exists(CONFIG_FILE):
-        print("Конфигурация не найдена. Создадим новый мастер-пароль.")
-        while True:
-            pwd = input("Введите новый мастер-пароль: ")
-            if pwd.strip():
-                initialize_vault(pwd)
-                print("Мастер-пароль успешно создан!")
-                break
-            print("Пароль не может быть пустым.")
-
-    while True:
-        pwd = input("Введите мастер-пароль для разблокировки сессии: ")
-        dek = load_dek(pwd)
-        if dek is not None:
-            CURRENT_DEK = dek
-            print("Сессия успешно разблокирована!\n")
-            break
-        else:
-            print("Неверный пароль или ошибка конфигурации! Попробуйте снова.")
-
-
 def write_table():
-    if not CURRENT_DEK:
+    if not session.is_active:
         print("Сессия не активна!")
         return False
 
     title_name = str(input("title name: "))
     secret_text = str(input("secret text: "))
 
-    # Генерируем UUID заранее — он идет и в БД, и как AAD для криптографии
     session_id = uuid.uuid4()
+    payload = {"title": title_name, "secret": secret_text}
 
-    payload = {
-        "title": title_name,
-        "secret": secret_text
-    }
-
-    # Шифруем с привязкой к session_id (AAD)
-    encrypted_payload = encrypt_vault_item(CURRENT_DEK, str(session_id), payload)
+    encrypted_payload = encrypt_vault_item(session.dek, str(session_id), payload)
 
     dict_to_insert = {
         "title": {"name": title_name},
         "secret": encrypted_payload
     }
 
-    insert_table(session_id, dict_to_insert)
+    db.insert_table(session_id, dict_to_insert)
     print(f"Запись успешно зашифрована и сохранена. ID: {session_id}")
     return True
 
 
 def show_secret():
-    """Поиск по ID с полной расшифровкой"""
-    if not CURRENT_DEK:
+    if not session.is_active:
         print("Сессия не активна!")
         return False
 
     raw_uuid = input("uuid code: ").strip()
-    checked_uuid = check_uuid(raw_uuid)
+    checked_uuid = db.check_uuid(raw_uuid)
     if checked_uuid is None:
         return False
 
-    result = get_secret_by_id(checked_uuid)
+    result = db.get_secret_by_id(checked_uuid)
     if result is None or result is False:
         print("Запись не найдена!")
         return False
 
     title_json, secret_json = result
     try:
-        # Расшифровываем, передавая тот же UUID в качестве AAD
-        decrypted_data = decrypt_vault_item(CURRENT_DEK, str(checked_uuid), secret_json)
+        decrypted_data = decrypt_vault_item(session.dek, str(checked_uuid), secret_json)
         print(f"\n[РАСШИФРОВАНО УСПЕШНО]")
         print(f"ID: {checked_uuid}")
         print(f"Title: {decrypted_data['title']}")
         print(f"Secret: {decrypted_data['secret']}\n")
         return True
     except Exception as e:
-        print(f"Ошибка расшифровки записи (возможно повреждены данные или нарушен AAD): {e}")
+        print(f"Ошибка расшифровки записи: {e}")
         return False
 
 
 def list_entries():
-    """Вывод сырого шифротекста для всех записей (команда s)"""
-    if not CURRENT_DEK:
+    if not session.is_active:
         print("Сессия не активна!")
         return
 
-    rows = show_table()
+    rows = db.show_table()
     if not rows:
         print("Хранилище пусто.")
         return
@@ -185,51 +156,52 @@ def list_entries():
 
 
 def secret_update():
-    if not CURRENT_DEK:
+    if not session.is_active:
         print("Сессия не активна!")
         return False
 
-    checked_uuid = check_uuid(input("uuid code: ").strip())
+    checked_uuid = db.check_uuid(input("uuid code: ").strip())
     if checked_uuid is None:
         return False
 
     new_title = str(input("new title: "))
     new_secret = str(input("new secret: "))
 
-    payload = {
-        "title": new_title,
-        "secret": new_secret
-    }
-
-    encrypted_payload = encrypt_vault_item(CURRENT_DEK, str(checked_uuid), payload)
+    payload = {"title": new_title, "secret": new_secret}
+    encrypted_payload = encrypt_vault_item(session.dek, str(checked_uuid), payload)
 
     dict_to_update = {
         "title": {"name": new_title},
         "secret": encrypted_payload
     }
 
-    changed = update_by_id(checked_uuid, dict_to_update)
+    changed = db.update_by_id(checked_uuid, dict_to_update)
     print("changed" if changed else "Запись не найдена")
     return changed
 
 
 def delete_secret():
-    checked_uuid = check_uuid(input("uuid code: ").strip())
+    if not session.is_active:
+        print("Сессия не активна!")
+        return False
+
+    checked_uuid = db.check_uuid(input("uuid code: ").strip())
     if checked_uuid is None:
         return False
 
-    deleted = delete_by_id(checked_uuid)
+    deleted = db.delete_by_id(checked_uuid)
     print("deleted" if deleted else "Запись не найдена")
     return deleted
 
 
 if __name__ == "__main__":
-    authenticate_session()
+    session.authenticate()
 
     while True:
         print("\n===== TESTING MENU =====")
         ask = str(input(
             "w to write, e to exit, s to show all, id to show by id, u to update, d to delete, ex to export, im to import: ")).strip()
+
         if ask == "w":
             write_table()
         elif ask == "s":
