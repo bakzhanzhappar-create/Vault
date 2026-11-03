@@ -38,18 +38,18 @@ class VaultRepository:
             print("Ошибка: Неверный формат UUID!")
             return None
 
-    def create_test_table(self) -> bool:
+    def create_vault(self) -> bool:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                CREATE TABLE IF NOT EXISTS test_table(
+                CREATE TABLE IF NOT EXISTS Vault(
                     session_id UUID PRIMARY KEY,
                     title JSONB NOT NULL,
                     secret JSONB
                 );
                 """)
                 conn.commit()
-        print("Таблица `test_table` успешно создана/проверена!")
+        print("Таблица `Vault` успешно создана/проверена!")
         return True
 
     def insert_table(self, session_id: UUID, dict_secret: dict) -> bool:
@@ -58,7 +58,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """INSERT INTO test_table(session_id, title, secret) VALUES (%s, %s, %s)""",
+                    """INSERT INTO Vault(session_id, title, secret) VALUES (%s, %s, %s)""",
                     (session_id, Jsonb(title), Jsonb(secret)),
                 )
                 conn.commit()
@@ -67,7 +67,7 @@ class VaultRepository:
     def show_table(self):
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("""SELECT session_id, title, secret FROM test_table;""")
+                cursor.execute("""SELECT session_id, title, secret FROM Vault;""")
                 return cursor.fetchall()
 
     def get_secret_by_id(self, uuid_code):
@@ -77,7 +77,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """SELECT title, secret FROM test_table WHERE session_id = %s;""",
+                    """SELECT title, secret FROM Vault WHERE session_id = %s;""",
                     (checked_uuid,)
                 )
                 return cursor.fetchone()
@@ -91,7 +91,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """UPDATE test_table SET title = %s, secret = %s WHERE session_id = %s;""",
+                    """UPDATE Vault SET title = %s, secret = %s WHERE session_id = %s;""",
                     (Jsonb(title), Jsonb(secret), checked_uuid),
                 )
                 conn.commit()
@@ -104,22 +104,22 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """DELETE FROM test_table WHERE session_id = %s;""",
+                    """DELETE FROM Vault WHERE session_id = %s;""",
                     (checked_uuid,)
                 )
                 conn.commit()
                 return cursor.rowcount == 1
 
     def import_db(self, vault_db: dict) -> bool:
-        self.create_test_table()
+        self.create_vault()
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute("""DELETE FROM test_table;""")
+                    cursor.execute("""DELETE FROM Vault;""")
 
                     for entry in vault_db["entries"]:
                         cursor.execute(
-                            """INSERT INTO test_table(session_id, title, secret) VALUES (%s, %s, %s);""",
+                            """INSERT INTO Vault(session_id, title, secret) VALUES (%s, %s, %s);""",
                             (entry["session_id"], Jsonb(entry["title"]), Jsonb(entry["secret"])),
                         )
                     conn.commit()

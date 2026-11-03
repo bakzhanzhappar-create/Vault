@@ -10,7 +10,7 @@ session = VaultSession()
 db = VaultRepository()
 
 # Создаем/проверяем таблицу через экземпляр репозитория
-db.create_test_table()
+db.create_vault()
 
 
 def export_vault():
