@@ -35,14 +35,14 @@ class VaultRepository:
         try:
             return UUID(str(uuid_code))
         except (ValueError, TypeError):
-            print("Ошибка: Неверный формат UUID!")
+            print("ERROR: Incorrect UUID!")
             return None
 
     def create_vault(self) -> bool:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                CREATE TABLE IF NOT EXISTS Vault(
+                CREATE TABLE IF NOT EXISTS vault(
                     session_id UUID PRIMARY KEY,
                     title JSONB NOT NULL,
                     secret JSONB
@@ -58,7 +58,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """INSERT INTO Vault(session_id, title, secret) VALUES (%s, %s, %s)""",
+                    """INSERT INTO vault(session_id, title, secret) VALUES (%s, %s, %s)""",
                     (session_id, Jsonb(title), Jsonb(secret)),
                 )
                 conn.commit()
@@ -67,7 +67,7 @@ class VaultRepository:
     def show_table(self):
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("""SELECT session_id, title, secret FROM Vault;""")
+                cursor.execute("""SELECT session_id, title, secret FROM vault;""")
                 return cursor.fetchall()
 
     def get_secret_by_id(self, uuid_code):
@@ -77,7 +77,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """SELECT title, secret FROM Vault WHERE session_id = %s;""",
+                    """SELECT title, secret FROM vault WHERE session_id = %s;""",
                     (checked_uuid,)
                 )
                 return cursor.fetchone()
@@ -91,7 +91,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """UPDATE Vault SET title = %s, secret = %s WHERE session_id = %s;""",
+                    """UPDATE vault SET title = %s, secret = %s WHERE session_id = %s;""",
                     (Jsonb(title), Jsonb(secret), checked_uuid),
                 )
                 conn.commit()
@@ -104,7 +104,7 @@ class VaultRepository:
         with self._get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """DELETE FROM Vault WHERE session_id = %s;""",
+                    """DELETE FROM vault WHERE session_id = %s;""",
                     (checked_uuid,)
                 )
                 conn.commit()
@@ -115,11 +115,11 @@ class VaultRepository:
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute("""DELETE FROM Vault;""")
+                    cursor.execute("""DELETE FROM vault;""")
 
                     for entry in vault_db["entries"]:
                         cursor.execute(
-                            """INSERT INTO Vault(session_id, title, secret) VALUES (%s, %s, %s);""",
+                            """INSERT INTO vault(session_id, title, secret) VALUES (%s, %s, %s);""",
                             (entry["session_id"], Jsonb(entry["title"]), Jsonb(entry["secret"])),
                         )
                     conn.commit()
