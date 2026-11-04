@@ -1,6 +1,6 @@
 import os
 from enigma import initialize_vault, load_dek, CONFIG_FILE
-
+#помимо валидации сессии. скоро тут будет уже подключения устройств и их валидация. рукопожатие и т.д.
 
 class VaultSession:
     def __init__(self):
