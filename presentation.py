@@ -6,7 +6,7 @@ from postgres import VaultRepository
 
 app = FastAPI(title="Vault - testing FastAPI")
 db = VaultRepository()
-db.create_vault()
+db.create_table()
 
 # app.add_middleware(
 #     CORSMiddleware,
@@ -17,8 +17,8 @@ db.create_vault()
 # )
 
 #без шифрования
-@app.post("/api/add", status_code=201)
-async def add(title: str, secret:str):
+@app.post("/api/write", status_code=201)
+async def write(title: str, secret:str):
     try:
         secret_dict = {
             "title": title,
@@ -71,3 +71,20 @@ async def delete(session_id: str):
         return {"status": "deleted", "result": db.delete_by_id(uuid_code=session_id)}
     except Exception as error:
         raise HTTPException(status_code=404, detail=str(error))
+
+
+@app.post("/api/dump", status_code=200)
+async def dump():
+    try:
+        return {"status": "DUMP", "result": db.backup()}
+    except FileNotFoundError:
+        error_msg = "Ошибка: утилита pg_dump не найдена. Убедитесь, что PostgreSQL клиент установлен и доступен в PATH."
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.post("/api/restore", status_code=200)
+async def restore(path: str):
+    try:
+        return {"status": "RESTORED", "result": db.restore(path)}
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error))
