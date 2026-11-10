@@ -9,4 +9,3 @@ env/
 __pycache__/
 *.py[cod]
 *.json
-*.sql

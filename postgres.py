@@ -1,6 +1,6 @@
 import os
 import psycopg
-import subprocess
+import json
 from psycopg.types.json import Jsonb
 from dotenv import load_dotenv
 from uuid import UUID
@@ -120,103 +120,62 @@ class VaultRepository:
                 conn.commit()
                 return cursor.rowcount == 1
 
-#все равно надо чекать. багованный
     def backup(self, backup_dir: str = ".") -> str | None:
-        """
-        Создает резервную копию базы данных в виде SQL-скрипта.
-        Возвращает путь к созданному файлу или None в случае ошибки.
-        """
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "5432")
-        dbname = os.getenv("DB_NAME", "vault_db")
-        user = os.getenv("DB_USER", "vault_app")
-        password = os.getenv("DB_PASSWORD", "")
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = os.path.join(backup_dir, f"backup_{dbname}_{timestamp}.sql")
-
-        # Кроссплатформенный вызов: на Linux/Docker ищет в PATH,
-        # на Windows можно при желании переопределить через переменные окружения
-        pg_dump_path = os.getenv("PG_DUMP_PATH", "pg_dump")
-
-        cmd = [
-            pg_dump_path,
-            "-h", host,
-            "-p", str(port),
-            "-U", user,
-            "-F", "p",
-            "-f", backup_file,
-            dbname
-        ]
-
-        env = os.environ.copy()
-        if password:
-            env["PGPASSWORD"] = password
-
         try:
-            subprocess.run(
-                cmd,
-                env=env,
-                check=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True
-            )
+            dbname = os.getenv("DB_NAME", "vault_db")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = os.path.join(backup_dir, f"backup_{dbname}_{timestamp}.json")
+
+            rows = self.show_table()
+            backup_data = []
+            for row in rows:
+                session_id, title, secret = row
+                backup_data.append({
+                    "session_id": str(session_id),
+                    "title": title,
+                    "secret": secret
+                })
+
+            with open(backup_file, "w", encoding="utf-8") as file:
+                json.dump(backup_data, file, ensure_ascii=False, indent=4)
+
             print(f"Бэкап успешно создан: {backup_file}")
             return backup_file
-        except subprocess.CalledProcessError as e:
-            print(f"Ошибка при создании бэкапа: {e.stderr}")
-            return None
-        except FileNotFoundError:
-            print("Ошибка: утилита pg_dump не найдена. Убедитесь, что PostgreSQL клиент установлен и доступен в PATH.")
+        except Exception as error:
+            print(f"Ошибка при создании бэкапа: {error}")
             return None
 
-    # все равно надо чекать. багованный
+
     def restore(self, backup_file: str) -> bool | None:
-        """
-        Восстанавливает базу данных из текстового SQL-файла с помощью psql.
-        """
         if not os.path.exists(backup_file):
             print(f"Файл бэкапа не найден: {backup_file}")
             return False
 
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "5432")
-        dbname = os.getenv("DB_NAME", "vault_db")
-        user = os.getenv("DB_USER", "vault_app")
-        password = os.getenv("DB_PASSWORD", "")
-
-        psql_path = os.getenv("PSQL_PATH", "psql")
-
-        cmd = [
-            psql_path,
-            "-h", host,
-            "-p", str(port),
-            "-U", user,
-            "-d", dbname,
-            "-f", backup_file
-        ]
-
-        env = os.environ.copy()
-        if password:
-            env["PGPASSWORD"] = password
-
         try:
-            subprocess.run(
-                cmd,
-                env=env,
-                check=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True
-            )
+            with open(backup_file, "r", encoding="utf-8") as file:
+                backup_data = json.load(file)
+
+            with self._get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""TRUNCATE TABLE vault;""")
+
+                    for item in backup_data:
+                        session_id = self.check_uuid(item["session_id"])
+                        if not session_id:
+                            continue
+
+                        title = item.get("title")
+                        secret = item.get("secret")
+
+                        cursor.execute(
+                            """INSERT INTO vault(session_id, title, secret)
+                               VALUES (%s, %s, %s)""",
+                            (session_id, Jsonb(title), Jsonb(secret)),
+                        )
+                    conn.commit()
+
             print(f"База данных успешно восстановлена из файла: {backup_file}")
             return True
-        except subprocess.CalledProcessError as e:
-            print(f"Ошибка при восстановлении базы данных: {e.stderr}")
+        except Exception as error:
+            print(f"Ошибка при восстановлении базы данных: {error}")
             return False
-        except FileNotFoundError:
-            print("Ошибка: утилита psql не найдена.")
-            return None

@@ -74,9 +74,10 @@ async def delete(session_id: str):
 
 
 @app.post("/api/dump", status_code=200)
-async def dump():
+async def dump(backup_dir: str="."):
     try:
-        return {"status": "DUMP", "result": db.backup()}
+        db.backup(backup_dir=backup_dir)
+        return {"status": "DUMP", "result":True}
     except FileNotFoundError:
         error_msg = "Ошибка: утилита pg_dump не найдена. Убедитесь, что PostgreSQL клиент установлен и доступен в PATH."
         print(error_msg)
@@ -85,6 +86,7 @@ async def dump():
 @app.post("/api/restore", status_code=200)
 async def restore(path: str):
     try:
-        return {"status": "RESTORED", "result": db.restore(path)}
+        db.restore(path)
+        return {"status": "RESTORED", "result": True}
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error))
