@@ -120,7 +120,7 @@ class VaultRepository:
                 conn.commit()
                 return cursor.rowcount == 1
 
-
+#все равно надо чекать. багованный
     def backup(self, backup_dir: str = ".") -> str | None:
         """
         Создает резервную копию базы данных в виде SQL-скрипта.
@@ -172,6 +172,7 @@ class VaultRepository:
             print("Ошибка: утилита pg_dump не найдена. Убедитесь, что PostgreSQL клиент установлен и доступен в PATH.")
             return None
 
+    # все равно надо чекать. багованный
     def restore(self, backup_file: str) -> bool | None:
         """
         Восстанавливает базу данных из текстового SQL-файла с помощью psql.
