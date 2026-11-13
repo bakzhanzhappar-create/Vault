@@ -8,13 +8,13 @@ app = FastAPI(title="Vault - testing FastAPI")
 db = VaultRepository()
 db.create_table()
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #без шифрования
 @app.post("/api/write", status_code=201)
