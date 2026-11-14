@@ -1,10 +1,52 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault — Secure Manager</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+    <div class="vault-layout">
+        <!-- Сайдбар -->
+        <aside class="sidebar">
+            <div class="brand-box">
+                <div class="brand-icon">🔒</div>
+                <h2>Vault</h2>
+            </div>
 
+            <nav class="nav-section">
+                <span class="nav-label">ХРАНИЛИЩЕ</span>
+                <a href="#" class="nav-item active">
+                    <span>📁</span> Все записи
+                </a>
+                <a href="#" class="nav-item">
+                    <span>🔑</span> Пароли
+                </a>
+                <a href="#" class="nav-item">
+                    <span>📝</span> Заметки
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Основная область -->
+        <main class="main-panel">
+            <header class="app-header">
+                <div class="header-title">
+                    <h1>Все элементы хранилища</h1>
+                    <span class="badge" id="count-badge">0 записей</span>
+                </div>
+                <button id="refresh-btn" class="btn-action">🔄 Обновить</button>
+            </header>
+
+            <div class="content-scroll">
+                <div id="vault-list" class="cards-grid">
+                    <div class="loading-state">Загрузка данных из базы...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
 </body>
 </html>
