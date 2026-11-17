@@ -1,15 +1,14 @@
 """FastAPI"""
-import uuid
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from postgres import VaultRepository
-
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from postgres import VaultRepository
 
 app = FastAPI(title="Vault - testing FastAPI")
 db = VaultRepository()
 db.create_table()
+db.create_config_table()  # Создаем таблицу конфигов для Zero-Knowledge
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,22 +28,56 @@ async def serve_index():
 async def serve_auth():
     return FileResponse("auth.html")
 
-#без шифрования
-@app.post("/api/write", status_code=201)
-async def write(title: str, secret:str):
+# --- Конфигурация хранилища (Zero-Knowledge) ---
+
+@app.get("/api/config/get")
+async def get_config():
+    cfg = db.get_config()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Config not initialized")
+    salt, nonce, encrypted_dek = cfg
+    return {"salt": salt, "nonce": nonce, "encrypted_dek": encrypted_dek}
+
+@app.post("/api/config/set")
+async def set_config(request: Request):
     try:
+        body = await request.json()
+        salt = body.get("salt")
+        nonce = body.get("nonce")
+        encrypted_dek = body.get("encrypted_dek")
+
+        if not salt or not nonce or not encrypted_dek:
+            raise HTTPException(status_code=400, detail="Missing configuration fields")
+
+        db.set_config(salt, nonce, encrypted_dek)
+        return {"status": "success"}
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error))
+
+# --- Записи в хранилище (с клиентским шифрованием) ---
+
+@app.post("/api/write", status_code=201)
+async def write(request: Request):
+    try:
+        body = await request.json()
+        session_id = body.get("session_id")
+        title_data = body.get("title")  # {nonce, ciphertext}
+        secret_data = body.get("secret") # {nonce, ciphertext}
+
+        if not session_id or not title_data or not secret_data:
+            raise HTTPException(status_code=400, detail="session_id, title and secret are required")
+
+        parsed_uuid = db.check_uuid(session_id)
+        if not parsed_uuid:
+            raise HTTPException(status_code=400, detail="Invalid UUID")
+
         secret_dict = {
-            "title": title,
-            "secret": secret
+            "title": title_data,
+            "secret": secret_data
         }
 
-        if not secret_dict.get("title") or not secret_dict.get("secret"):
-            raise HTTPException(status_code=400, detail="title and secret text are required")
-
-        session_id = uuid.uuid4()
-
-        db.insert_table(session_id=session_id, dict_secret=secret_dict)
-        return {"status": "lol it worked", "id": str(session_id)}
+        db.insert_table(session_id=parsed_uuid, dict_secret=secret_dict)
+        return {"status": "encrypted write success", "id": str(parsed_uuid)}
 
     except Exception as error:
         print(f"ERROR: {error}")
@@ -57,14 +90,12 @@ async def read(session_id: str):
     except Exception as error:
         raise HTTPException(status_code=404, detail=str(error))
 
-
 @app.get("/api/show", status_code=200)
 async def show():
     try:
         return {"status": "show table", "result": db.show_table()}
     except Exception as error:
         raise HTTPException(status_code=404, detail=str(error))
-
 
 @app.put("/api/update", status_code=200)
 async def update(session_id: str, title: str, secret: str):
@@ -77,14 +108,12 @@ async def update(session_id: str, title: str, secret: str):
     except Exception as error:
         raise HTTPException(status_code=404, detail=str(error))
 
-
 @app.delete("/api/delete", status_code=200)
 async def delete(session_id: str):
     try:
         return {"status": "deleted", "result": db.delete_by_id(uuid_code=session_id)}
     except Exception as error:
         raise HTTPException(status_code=404, detail=str(error))
-
 
 @app.post("/api/dump", status_code=200)
 async def dump(backup_dir: str="."):
