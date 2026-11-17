@@ -8,35 +8,35 @@
 </head>
 <body>
     <div class="vault-layout">
-        <!-- Сайдбар -->
         <aside class="sidebar">
             <div class="brand-box">
-                <div class="brand-icon">🔒</div>
                 <h2>Vault</h2>
             </div>
 
             <nav class="nav-section">
                 <span class="nav-label">ХРАНИЛИЩЕ</span>
                 <a href="#" class="nav-item active">
-                    <span>📁</span> Все записи
+                    <span></span> Все записи
                 </a>
                 <a href="#" class="nav-item">
-                    <span>🔑</span> Пароли
+                    <span></span> Пароли
                 </a>
                 <a href="#" class="nav-item">
-                    <span>📝</span> Заметки
+                    <span></span> Заметки
                 </a>
             </nav>
         </aside>
 
-        <!-- Основная область -->
         <main class="main-panel">
             <header class="app-header">
                 <div class="header-title">
                     <h1>Все элементы хранилища</h1>
                     <span class="badge" id="count-badge">0 записей</span>
                 </div>
-                <button id="refresh-btn" class="btn-action">🔄 Обновить</button>
+                <div class="header-actions">
+                    <button id="add-btn" class="btn-action btn-add" title="Добавить запись">＋</button>
+                    <button id="refresh-btn" class="btn-action">Обновить</button>
+                </div>
             </header>
 
             <div class="content-scroll">
@@ -48,5 +48,26 @@
     </div>
 
     <script src="/app.js"></script>
+<div id="add-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3> Новая запись </h3>
+            <button id="modal-close" class="modal-close-btn">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="input-title">Название</label>
+                <input type="text" id="input-title" placeholder="Например: Почта, Пароль от Wi-Fi...">
+            </div>
+            <div class="form-group">
+                <label for="input-secret">Секрет / Данные</label>
+                <textarea id="input-secret" placeholder="Текст секрета, пароль или заметка..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="modal-save" class="btn-action">Сохранить</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

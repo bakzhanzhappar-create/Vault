@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault — Авторизация</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="brand-box auth-brand">
+            <span class="brand-icon"></span>
+            <h2>Vault</h2>
+        </div>
+        <div class="auth-card">
+            <h3>Вход в хранилище</h3>
+            <p class="auth-subtitle">Введите мастер-пароль для расшифровки данных</p>
+
+            <div class="form-group">
+                <label for="master-password">Мастер-пароль</label>
+                <input type="password" id="master-password" placeholder="Введите пароль..." autofocus>
+            </div>
+
+            <div id="auth-error" class="auth-error" style="display: none;"></div>
+
+            <button id="unlock-btn" class="btn-action auth-btn">Разблокировать</button>
+        </div>
+    </div>
+
+    <!-- Подключаем крипто-модуль и скрипт авторизации -->
+    <script src="/static/crypto.js"></script>
+    <script src="/static/auth.js"></script>
+</body>
+</html>

@@ -4,6 +4,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from postgres import VaultRepository
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
 app = FastAPI(title="Vault - testing FastAPI")
 db = VaultRepository()
 db.create_table()
@@ -15,6 +18,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory="."), name="static")
+
+@app.get("/")
+async def serve_index():
+    return FileResponse("index.html")
+
+@app.get("/auth")
+async def serve_auth():
+    return FileResponse("auth.html")
 
 #без шифрования
 @app.post("/api/write", status_code=201)

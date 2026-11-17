@@ -179,3 +179,39 @@ class VaultRepository:
         except Exception as error:
             print(f"Ошибка при восстановлении базы данных: {error}")
             return False
+
+#for cryptography
+    def create_config_table(self) -> bool:
+        with self._get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                               CREATE TABLE IF NOT EXISTS vault_config
+                               (
+                                   id INT PRIMARY KEY,
+                                   salt TEXT NOT NULL,
+                                   nonce TEXT NOT NULL,
+                                   encrypted_dek TEXT NOT NULL
+                               );
+                               """)
+                conn.commit()
+        return True
+
+    def get_config(self):
+        with self._get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""SELECT salt, nonce, encrypted_dek
+                                  FROM vault_config
+                                  WHERE id = 1;""")
+                return cursor.fetchone()
+
+    def set_config(self, salt: str, nonce: str, encrypted_dek: str):
+        with self._get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                               INSERT INTO vault_config (id, salt, nonce, encrypted_dek)
+                               VALUES (1, %s, %s, %s) ON CONFLICT (id) DO
+                               UPDATE
+                                   SET salt = EXCLUDED.salt, nonce = EXCLUDED.nonce, encrypted_dek = EXCLUDED.encrypted_dek;
+                               """, (salt, nonce, encrypted_dek))
+                conn.commit()
+        return True
