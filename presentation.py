@@ -26,7 +26,7 @@ async def serve_index():
 
 @app.get("/auth")
 async def serve_auth():
-    return FileResponse("auth.html")
+    return FileResponse("auth_page.html")
 
 # --- Конфигурация хранилища (Zero-Knowledge) ---
 
