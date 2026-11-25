@@ -34,7 +34,7 @@ async def serve_auth():
 async def get_config():
     cfg = db.get_config()
     if not cfg:
-        raise HTTPException(status_code=404, detail="Config not initialized")
+        raise HTTPException(status_code=505, detail="Config not initialized")
     salt, nonce, encrypted_dek = cfg
     return {"salt": salt, "nonce": nonce, "encrypted_dek": encrypted_dek}
 
@@ -46,8 +46,10 @@ async def set_config(request: Request):
         nonce = body.get("nonce")
         encrypted_dek = body.get("encrypted_dek")
 
-        if not salt or not nonce or not encrypted_dek:
-            raise HTTPException(status_code=400, detail="Missing configuration fields")
+        required_fields = ["salt", "nonce", "encrypted_dek"]
+
+        if not any(required_fields):
+            raise HTTPException(status_code=401, detail="Missing configuration fields")
 
         db.set_config(salt, nonce, encrypted_dek)
         return {"status": "success"}
@@ -80,7 +82,6 @@ async def write(request: Request):
         return {"status": "encrypted write success", "id": str(parsed_uuid)}
 
     except Exception as error:
-        print(f"ERROR: {error}")
         raise HTTPException(status_code=500, detail=str(error))
 
 @app.get("/api/read", status_code=200)
@@ -122,7 +123,7 @@ async def dump(backup_dir: str="."):
         return {"status": "DUMP", "result":True}
     except FileNotFoundError:
         error_msg = "Ошибка: утилита pg_dump не найдена. Убедитесь, что PostgreSQL клиент установлен и доступен в PATH."
-        print(error_msg)
+        print(error_msg) # logger here
         raise HTTPException(status_code=500, detail=error_msg)
 
 @app.post("/api/restore", status_code=200)
